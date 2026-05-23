@@ -5,16 +5,21 @@ import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { errorHandler } from "./errors/error-handler";
+import { loggerPlugin } from "./plugins/logger";
 
 import { authRoutes } from "./modules/auth/auth.routes";
 import { adminRoutes } from "./modules/admin/admin.routes";
 
 export const app = Fastify({
-  logger: false,
+  logger: {
+    level: process.env.NODE_ENV === "test" ? "silent" : "info",
+  },
+  genReqId: () => crypto.randomUUID(),
 });
 
 app.setErrorHandler(errorHandler);
 
+app.register(loggerPlugin);
 app.register(helmet);
 
 app.register(cors, {
