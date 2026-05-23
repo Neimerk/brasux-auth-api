@@ -1,0 +1,40 @@
+name: BrasUX Auth API CI
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build and Type Check
+    runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: postgresql://brasux_user:Brasux%402026@localhost:5432/brasux_auth_db
+      JWT_SECRET: ci_test_secret
+      JWT_EXPIRES_IN: 15m
+      PORT: 3333
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Build project
+        run: npm run build
