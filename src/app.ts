@@ -4,6 +4,7 @@ import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
+import { errorHandler } from "./errors/error-handler";
 
 import { authRoutes } from "./modules/auth/auth.routes";
 import { adminRoutes } from "./modules/admin/admin.routes";
@@ -11,6 +12,8 @@ import { adminRoutes } from "./modules/admin/admin.routes";
 export const app = Fastify({
   logger: false,
 });
+
+app.setErrorHandler(errorHandler);
 
 app.register(helmet);
 

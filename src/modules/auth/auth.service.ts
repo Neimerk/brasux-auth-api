@@ -1,6 +1,8 @@
 import bcrypt from "bcrypt";
 import jwt, { SignOptions } from "jsonwebtoken";
 import { v4 as uuid } from "uuid";
+
+import { AppError } from "../../errors/app-error";
 import { prisma } from "../../lib/prisma";
 
 type UserRole = "USER" | "ADMIN";
@@ -20,7 +22,7 @@ function generateAccessToken(user: { id: string; role: UserRole }) {
   const secret = process.env.JWT_SECRET;
 
   if (!secret) {
-    throw new Error("JWT_SECRET não configurado.");
+    throw new AppError("JWT_SECRET não configurado.", 500);
   }
 
   const jwtConfig: SignOptions = {
@@ -63,7 +65,7 @@ export async function registerUser({ name, email, password }: RegisterInput) {
   });
 
   if (userAlreadyExists) {
-    throw new Error("Este e-mail já está em uso.");
+    throw new AppError("Este e-mail já está em uso.", 409);
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
@@ -92,13 +94,13 @@ export async function loginUser({ email, password }: LoginInput) {
   });
 
   if (!user) {
-    throw new Error("E-mail ou senha inválidos.");
+    throw new AppError("E-mail ou senha inválidos.", 401);
   }
 
   const passwordIsValid = await bcrypt.compare(password, user.password);
 
   if (!passwordIsValid) {
-    throw new Error("E-mail ou senha inválidos.");
+    throw new AppError("E-mail ou senha inválidos.", 401);
   }
 
   const accessToken = generateAccessToken({
@@ -131,11 +133,11 @@ export async function refreshAccessToken(token: string) {
   });
 
   if (!storedToken || storedToken.revoked) {
-    throw new Error("Refresh token inválido.");
+    throw new AppError("Refresh token inválido.", 401);
   }
 
   if (storedToken.expiresAt < new Date()) {
-    throw new Error("Refresh token expirado.");
+    throw new AppError("Refresh token expirado.", 401);
   }
 
   const accessToken = generateAccessToken({
@@ -156,7 +158,7 @@ export async function logoutUser(token: string) {
   });
 
   if (!storedToken) {
-    throw new Error("Refresh token inválido.");
+    throw new AppError("Refresh token inválido.", 401);
   }
 
   await prisma.refreshToken.update({
@@ -189,7 +191,7 @@ export async function getUserProfile(userId: string) {
   });
 
   if (!user) {
-    throw new Error("Usuário não encontrado.");
+    throw new AppError("Usuário não encontrado.", 404);
   }
 
   return user;

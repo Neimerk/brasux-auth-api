@@ -1,5 +1,7 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
+
+import { AppError } from "../../errors/app-error";
 import {
   getUserProfile,
   loginUser,
@@ -27,156 +29,66 @@ export async function registerController(
   request: FastifyRequest,
   reply: FastifyReply
 ) {
-  try {
-    const data = registerSchema.parse(request.body);
+  const data = registerSchema.parse(request.body);
 
-    const user = await registerUser(data);
+  const user = await registerUser(data);
 
-    return reply.status(201).send({
-      message: "Usuário cadastrado com sucesso.",
-      user,
-    });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return reply.status(400).send({
-        message: "Erro de validação.",
-        issues: error.issues,
-      });
-    }
-
-    if (error instanceof Error) {
-      return reply.status(400).send({
-        message: error.message,
-      });
-    }
-
-    return reply.status(500).send({
-      message: "Erro interno no servidor.",
-    });
-  }
+  return reply.status(201).send({
+    message: "Usuário cadastrado com sucesso.",
+    user,
+  });
 }
 
 export async function loginController(
   request: FastifyRequest,
   reply: FastifyReply
 ) {
-  try {
-    const data = loginSchema.parse(request.body);
+  const data = loginSchema.parse(request.body);
 
-    const result = await loginUser(data);
+  const result = await loginUser(data);
 
-    return reply.status(200).send({
-      message: "Login realizado com sucesso.",
-      ...result,
-    });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return reply.status(400).send({
-        message: "Erro de validação.",
-        issues: error.issues,
-      });
-    }
-
-    if (error instanceof Error) {
-      return reply.status(401).send({
-        message: error.message,
-      });
-    }
-
-    return reply.status(500).send({
-      message: "Erro interno no servidor.",
-    });
-  }
+  return reply.status(200).send({
+    message: "Login realizado com sucesso.",
+    ...result,
+  });
 }
 
 export async function refreshController(
   request: FastifyRequest,
   reply: FastifyReply
 ) {
-  try {
-    const { refreshToken } = refreshTokenSchema.parse(request.body);
+  const { refreshToken } = refreshTokenSchema.parse(request.body);
 
-    const result = await refreshAccessToken(refreshToken);
+  const result = await refreshAccessToken(refreshToken);
 
-    return reply.status(200).send({
-      message: "Access token renovado com sucesso.",
-      ...result,
-    });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return reply.status(400).send({
-        message: "Erro de validação.",
-        issues: error.issues,
-      });
-    }
-
-    if (error instanceof Error) {
-      return reply.status(401).send({
-        message: error.message,
-      });
-    }
-
-    return reply.status(500).send({
-      message: "Erro interno no servidor.",
-    });
-  }
+  return reply.status(200).send({
+    message: "Access token renovado com sucesso.",
+    ...result,
+  });
 }
 
 export async function logoutController(
   request: FastifyRequest,
   reply: FastifyReply
 ) {
-  try {
-    const { refreshToken } = refreshTokenSchema.parse(request.body);
+  const { refreshToken } = refreshTokenSchema.parse(request.body);
 
-    const result = await logoutUser(refreshToken);
+  const result = await logoutUser(refreshToken);
 
-    return reply.status(200).send(result);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return reply.status(400).send({
-        message: "Erro de validação.",
-        issues: error.issues,
-      });
-    }
-
-    if (error instanceof Error) {
-      return reply.status(401).send({
-        message: error.message,
-      });
-    }
-
-    return reply.status(500).send({
-      message: "Erro interno no servidor.",
-    });
-  }
+  return reply.status(200).send(result);
 }
 
 export async function meController(
   request: FastifyRequest,
   reply: FastifyReply
 ) {
-  try {
-    if (!request.user) {
-      return reply.status(401).send({
-        message: "Usuário não autenticado.",
-      });
-    }
-
-    const user = await getUserProfile(request.user.id);
-
-    return reply.status(200).send({
-      user,
-    });
-  } catch (error) {
-    if (error instanceof Error) {
-      return reply.status(404).send({
-        message: error.message,
-      });
-    }
-
-    return reply.status(500).send({
-      message: "Erro interno no servidor.",
-    });
+  if (!request.user) {
+    throw new AppError("Usuário não autenticado.", 401);
   }
+
+  const user = await getUserProfile(request.user.id);
+
+  return reply.status(200).send({
+    user,
+  });
 }
