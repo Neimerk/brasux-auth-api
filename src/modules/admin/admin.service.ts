@@ -17,3 +17,14 @@ export async function listUsers() {
 
   return users;
 }
+
+export async function listAuditLogs() {
+  const logs = await prisma.auditLog.findMany({
+    orderBy: {
+      createdAt: "desc",
+    },
+    take: 100,
+  });
+
+  return logs;
+}

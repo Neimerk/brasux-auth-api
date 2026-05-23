@@ -1,5 +1,5 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { listUsers } from "./admin.service";
+import { listAuditLogs, listUsers } from "./admin.service";
 
 export async function listUsersController(
   request: FastifyRequest,
@@ -9,5 +9,16 @@ export async function listUsersController(
 
   return reply.status(200).send({
     users,
+  });
+}
+
+export async function listAuditLogsController(
+  request: FastifyRequest,
+  reply: FastifyReply
+) {
+  const logs = await listAuditLogs();
+
+  return reply.status(200).send({
+    logs,
   });
 }

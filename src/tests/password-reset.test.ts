@@ -3,17 +3,17 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { app } from "../app";
 import { prisma } from "../lib/prisma";
 
-describe("Auth Flow", () => {
-  const testUser = {
-    name: "Usuário Teste",
-    email: `teste-${Date.now()}@brasux.com`,
-    password: "123456",
-  };
-
+describe("Password Reset Flow", () => {
   const clientId = "notaon-ead";
 
-  let accessToken = "";
-  let refreshToken = "";
+  const testUser = {
+    name: "Password Reset User",
+    email: `password-reset-${Date.now()}@brasux.com`,
+    password: "123456",
+    newPassword: "654321",
+  };
+
+  let resetToken = "";
 
   beforeAll(async () => {
     await app.ready();
@@ -49,9 +49,27 @@ describe("Auth Flow", () => {
         skipDuplicates: true,
       });
     }
+
+    await app.inject({
+      method: "POST",
+      url: "/auth/register",
+      payload: {
+        name: testUser.name,
+        email: testUser.email,
+        password: testUser.password,
+      },
+    });
   });
 
   afterAll(async () => {
+    await prisma.passwordResetToken.deleteMany({
+      where: {
+        user: {
+          email: testUser.email,
+        },
+      },
+    });
+
     await prisma.refreshToken.deleteMany({
       where: {
         user: {
@@ -69,28 +87,52 @@ describe("Auth Flow", () => {
     await app.close();
   });
 
-  it("should register a new user", async () => {
+  it("should request password reset", async () => {
     const response = await app.inject({
       method: "POST",
-      url: "/auth/register",
-      payload: testUser,
+      url: "/auth/forgot-password",
+      payload: {
+        email: testUser.email,
+      },
     });
 
-    expect(response.statusCode).toBe(201);
+    expect(response.statusCode).toBe(200);
 
     const body = response.json();
 
-    expect(body.user.email).toBe(testUser.email);
-    expect(body.user.password).toBeUndefined();
+    expect(body.message).toBe(
+      "Se este e-mail estiver cadastrado, enviaremos instruções para recuperação de senha."
+    );
+
+    expect(body.resetToken).toBeTruthy();
+
+    resetToken = body.resetToken;
   });
 
-  it("should login user and return tokens", async () => {
+  it("should reset password with valid token", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/auth/reset-password",
+      payload: {
+        token: resetToken,
+        password: testUser.newPassword,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+
+    expect(response.json()).toEqual({
+      message: "Senha redefinida com sucesso.",
+    });
+  });
+
+  it("should login with new password", async () => {
     const response = await app.inject({
       method: "POST",
       url: "/auth/login",
       payload: {
         email: testUser.email,
-        password: testUser.password,
+        password: testUser.newPassword,
         clientId,
       },
     });
@@ -99,70 +141,31 @@ describe("Auth Flow", () => {
 
     const body = response.json();
 
-    accessToken = body.accessToken;
-    refreshToken = body.refreshToken;
-
-    expect(accessToken).toBeTruthy();
-    expect(refreshToken).toBeTruthy();
-    expect(body.user.email).toBe(testUser.email);
-    expect(body.client.name).toBe(clientId);
-    expect(body.client.scopes).toContain("courses:read");
-  });
-
-  it("should access authenticated profile", async () => {
-    const response = await app.inject({
-      method: "GET",
-      url: "/auth/me",
-      headers: {
-        authorization: `Bearer ${accessToken}`,
-      },
-    });
-
-    expect(response.statusCode).toBe(200);
-
-    const body = response.json();
-
-    expect(body.user.email).toBe(testUser.email);
-  });
-
-  it("should refresh access token", async () => {
-    const response = await app.inject({
-      method: "POST",
-      url: "/auth/refresh",
-      payload: {
-        refreshToken,
-      },
-    });
-
-    expect(response.statusCode).toBe(200);
-
-    const body = response.json();
-
     expect(body.accessToken).toBeTruthy();
+    expect(body.refreshToken).toBeTruthy();
+    expect(body.client.name).toBe(clientId);
   });
 
-  it("should logout user", async () => {
+  it("should not reuse reset token", async () => {
     const response = await app.inject({
       method: "POST",
-      url: "/auth/logout",
+      url: "/auth/reset-password",
       payload: {
-        refreshToken,
+        token: resetToken,
+        password: "nova123",
       },
     });
 
-    expect(response.statusCode).toBe(200);
-
-    const body = response.json();
-
-    expect(body.message).toBe("Logout realizado com sucesso.");
+    expect(response.statusCode).toBe(401);
   });
 
-  it("should not refresh token after logout", async () => {
+  it("should not reset password with invalid token", async () => {
     const response = await app.inject({
       method: "POST",
-      url: "/auth/refresh",
+      url: "/auth/reset-password",
       payload: {
-        refreshToken,
+        token: "invalid-token",
+        password: "nova123",
       },
     });
 

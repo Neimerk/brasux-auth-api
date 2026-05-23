@@ -1,9 +1,14 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import jwt from "jsonwebtoken";
 
+import { jwtPublicKey } from "../config/jwt";
+
 type JwtPayload = {
   sub: string;
   role: "USER" | "ADMIN";
+  scope?: string;
+  aud?: string;
+  iss?: string;
 };
 
 export async function authMiddleware(
@@ -26,20 +31,17 @@ export async function authMiddleware(
     });
   }
 
-  const secret = process.env.JWT_SECRET;
-
-  if (!secret) {
-    return reply.status(500).send({
-      message: "JWT_SECRET não configurado.",
-    });
-  }
-
   try {
-    const decoded = jwt.verify(token, secret) as JwtPayload;
+    const decoded = jwt.verify(token, jwtPublicKey, {
+      algorithms: ["RS256"],
+    }) as JwtPayload;
 
     request.user = {
       id: decoded.sub,
       role: decoded.role,
+      scope: decoded.scope,
+      aud: decoded.aud,
+      iss: decoded.iss,
     };
   } catch {
     return reply.status(401).send({

@@ -5,6 +5,9 @@ declare module "fastify" {
     user?: {
       id: string;
       role: "USER" | "ADMIN";
+      scope?: string;
+      aud?: string;
+      iss?: string;
     };
   }
 }
